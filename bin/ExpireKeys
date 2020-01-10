@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+
+from __future__ import print_function
+import boto3
+from botocore.exceptions import ClientError
+import os
+import json
+import csv
+from time import sleep
+import datetime
+import dateutil.parser
+import sys
+
+
+# These should be passed in via Environment Variables
+MAX_AGE = int(os.environ['MAX_AGE'])
+WARNING_PERIOD = int(os.environ['WARNING_PERIOD'])
+DISABLE_USERS = os.environ['DISABLE_USERS']
+SEND_EMAIL = os.environ['SEND_EMAIL']
+FROM_ADDRESS = os.environ['FROM_ADDRESS']
+EXPLANATION_FOOTER = os.environ['EXPLANATION_FOOTER']
+EXPLANATION_HEADER = os.environ['EXPLANATION_HEADER']
+
+
+if DISABLE_USERS == "true":
+    expired_message = "\n\tYour Password is {} days too old. Your permissions have been revoked. "
+    key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. It has been deactivated. "
+else:
+    expired_message = "\n\tYour Password is {} days too old. You must change your password or risk losing access. "
+    key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. Please rotate this key or it will be deactivated. "
+
+key_warn_message = "\n\tYour AccessKey ID {} is {} days from expiration. Please rotate this key or it will be deactivated. "
+password_warn_message = "\n\tYour Password will expire in {} days"
+
+email_subject = "Credential Expiration Notice From AWS Account: {}"
+
+
+def process_keys():
+    iam_client = boto3.client('iam')
+
+    account_name = iam_client.list_account_aliases()['AccountAliases'][0]
+    credential_report = get_credential_report(iam_client)
+
+    # Iterate over the credential report, use the report to determine password expiration
+    # Then query for access keys, and use the key creation data to determine key expiration
+    for row in credential_report:
+        message = ""  # This is what we send to the user
+
+        # Process their Access Keys
+        response = iam_client.list_access_keys(UserName=row['user'])
+        for key in response['AccessKeyMetadata']:
+            if key['Status'] == "Inactive":
+                continue
+            key_expires = days_till_expire(key['CreateDate'], MAX_AGE)
+            if key_expires <= 0:
+                message = message + key_expired_message.format(key['AccessKeyId'], key_expires * -1)
+                disable_users_key(key['AccessKeyId'], row['user'], iam_client)
+            elif key_expires < WARNING_PERIOD:
+                message = message + key_warn_message.format(key['AccessKeyId'], key_expires)
+
+        # Email user if necessary
+        if message != "":
+            email_user(row['user'], message, account_name)
+
+
+def email_user(email, message, account_name):
+    if message == "":
+        return  # Don't send an empty message
+    body = EXPLANATION_HEADER + "\n" + message + "\n\n" + EXPLANATION_FOOTER
+    print("\nEmail Sent to {}: {}".format(email, body))
+    if SEND_EMAIL != "true":
+        return  # Abort if we're not supposed to send email
+    client = boto3.client('ses')
+    try:
+        client.send_email(
+            Source=FROM_ADDRESS,
+            Destination={'ToAddresses': [email]},
+            Message={
+                'Subject': {'Data': email_subject.format(account_name)},
+                'Body': {'Text': {'Data': body}}
+            }
+        )
+        return
+    except ClientError as e:
+        print("Failed to send message to {}: {}".format(email, e.message))
+        print("\nERROR: Message to {} was rejected: {}".format(email, e.message))
+
+
+def days_till_expire(last_changed, max_age):
+    # Ok - So last_changed can either be a string to parse or already a datetime object.
+    # Handle these accordingly
+    if type(last_changed) is str:
+        last_changed_date = dateutil.parser.parse(last_changed).date()
+    elif type(last_changed) is datetime.datetime:
+        last_changed_date = last_changed.date()
+    else:
+        # print("last_changed", last_changed)
+        # print(type(last_changed))
+        return -99999
+    expires = (last_changed_date + datetime.timedelta(max_age)) - datetime.date.today()
+    return(expires.days)
+
+
+# Request the credential report, download and parse the CSV.
+def get_credential_report(iam_client):
+    resp1 = iam_client.generate_credential_report()
+    if resp1['State'] == 'COMPLETE':
+        try:
+            response = iam_client.get_credential_report()
+            credential_report_csv = response['Content'].decode('us-ascii')
+            # print(credential_report_csv)
+            reader = csv.DictReader(credential_report_csv.splitlines())
+            # print(reader.fieldnames)
+            credential_report = []
+            for row in reader:
+                if row['user'] != '<root_account>':
+                    credential_report.append(row)
+            return(credential_report)
+        except ClientError as e:
+            print("Unknown error getting Report: " + e.message)
+    else:
+        sleep(2)
+        return get_credential_report(iam_client)
+
+
+# Turn off the specified user's key by setting it to inactive.
+def disable_users_key(AccessKeyId, UserName, iam_client):
+    print("\nDisabling AccessKeyId {} for user {}".format(AccessKeyId, UserName))
+    if DISABLE_USERS != "true":
+        return
+    response = iam_client.update_access_key(
+        UserName=UserName,
+        AccessKeyId=AccessKeyId,
+        Status='Inactive'
+    )
+    if response['ResponseMetadata']['HTTPStatusCode'] != 200:
+        handle_error("Adding User to Blackhole Group", UserName, response['ResponseMetadata'])
+    else:
+        return 0
+
+
+def handle_error(action, username, ResponseMetadata):
+    raise Exception("ERROR" + action + " User: " + username + " Details: " + ResponseMetadata)
+
+
+if __name__ == "__main__":
+    process_keys()
