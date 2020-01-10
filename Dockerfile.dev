@@ -1,0 +1,26 @@
+#
+# build:
+# (assume an IAM role in the sandbox account)
+# $ docker build --file=Dockerfile.dev --tag=affectiva/aws-acct-info:dev .
+#
+# run interactively:
+# $ docker run -it --rm --volume=$PWD:$PWD --workdir=$PWD --env=AWS_ACCESS_KEY_ID --env=AWS_SECRET_ACCESS_KEY --env=AWS_SESSION_TOKEN affectiva/aws-acct-info:dev
+#
+# run a command in the interactive container that you ran above:
+# $ $ docker exec -it {container name} bash
+
+FROM python:3.5-buster
+MAINTAINER Affectiva Development (affdexdev@affectiva.com)
+
+ENV MAX_AGE=365 \
+    WARNING_PERIOD=30 \
+    DISABLE_USERS=False \
+    SEND_EMAIL=False \
+    FROM_ADDRESS=webops@affectiva.com \
+    EXPLANATION_HEADER="Greetings from the IAM key nag-bot," \
+    EXPLANATION_FOOTER="For more info on how to do that please see https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console"
+
+COPY ./requirements.txt /tmp
+RUN pip install -r /tmp/requirements.txt
+
+CMD ["bash", "-l"]
