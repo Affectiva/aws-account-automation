@@ -1,10 +1,10 @@
 #
 # build:
 # (assume an IAM role in the sandbox account)
-# $ docker build --file=Dockerfile.dev --tag=affectiva/aws-acct-info:dev .
+# $ docker build --file=Dockerfile.dev --tag=affectiva/aws-acct-auto:dev .
 #
 # run interactively:
-# $ docker run -it --rm --volume=$PWD:$PWD --workdir=$PWD --env=AWS_ACCESS_KEY_ID --env=AWS_SECRET_ACCESS_KEY --env=AWS_SESSION_TOKEN affectiva/aws-acct-info:dev
+# $ docker run -it --rm --volume=$PWD:$PWD --workdir=$PWD --env=AWS_ACCESS_KEY_ID --env=AWS_SECRET_ACCESS_KEY --env=AWS_SESSION_TOKEN affectiva/aws-acct-auto:dev
 #
 # run a command in the interactive container that you ran above:
 # $ $ docker exec -it {container name} bash
