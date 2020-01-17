@@ -9,7 +9,7 @@
 # run a command in the interactive container that you ran above:
 # $ $ docker exec -it {container name} bash
 
-FROM python:3.5-buster
+FROM python:3-buster
 MAINTAINER Affectiva Development (affdexdev@affectiva.com)
 
 ENV AWS_DEFAULT_REGION=us-east-1 \
