@@ -15,7 +15,7 @@ MAINTAINER Affectiva Development (affdexdev@affectiva.com)
 ENV AWS_DEFAULT_REGION=us-east-1 \
     MAX_AGE=365 \
     WARNING_PERIOD=30 \
-    DISABLE_USERS=False \
+    DISABLE_KEYS=False \
     SEND_EMAIL=False \
     EMAIL_DOMAIN=affectiva.com \
     FROM_ADDRESS=webops@affectiva.com \

@@ -13,7 +13,7 @@ import dateutil.parser
 # These should be passed in via Environment Variables
 MAX_AGE = int(os.environ['MAX_AGE'])
 WARNING_PERIOD = int(os.environ['WARNING_PERIOD'])
-DISABLE_USERS = os.environ['DISABLE_USERS']
+DISABLE_KEYS = os.environ['DISABLE_KEYS']
 SEND_EMAIL = os.environ['SEND_EMAIL']
 EMAIL_DOMAIN = os.environ['EMAIL_DOMAIN']
 FROM_ADDRESS = os.environ['FROM_ADDRESS']
@@ -21,15 +21,12 @@ EXPLANATION_FOOTER = os.environ['EXPLANATION_FOOTER']
 EXPLANATION_HEADER = os.environ['EXPLANATION_HEADER']
 
 
-if DISABLE_USERS == "true":
-    expired_message = "\n\tYour Password is {} days too old. Your permissions have been revoked. "
+if DISABLE_KEYS == "true":
     key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. It has been deactivated. "
 else:
-    expired_message = "\n\tYour Password is {} days too old. You must change your password or risk losing access. "
     key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. Please rotate this key or it will be deactivated. "
 
 key_warn_message = "\n\tYour AccessKey ID {} is {} days from expiration. Please rotate this key or it will be deactivated. "
-password_warn_message = "\n\tYour Password will expire in {} days"
 
 email_subject = "Credential Expiration Notice From AWS Account: {}"
 
@@ -53,7 +50,7 @@ def process_keys():
             key_expires = days_till_expire(key['CreateDate'], MAX_AGE)
             if key_expires <= 0:
                 message = message + key_expired_message.format(key['AccessKeyId'], key_expires * -1)
-                disable_users_key(key['AccessKeyId'], row['user'], iam_client)
+                disable_key(key['AccessKeyId'], row['user'], iam_client)
             elif key_expires < WARNING_PERIOD:
                 message = message + key_warn_message.format(key['AccessKeyId'], key_expires)
 
@@ -120,23 +117,15 @@ def get_credential_report(iam_client):
 
 
 # Turn off the specified user's key by setting it to inactive.
-def disable_users_key(AccessKeyId, UserName, iam_client):
+def disable_key(AccessKeyId, UserName, iam_client):
     print("\nDisabling AccessKeyId {} for user {}".format(AccessKeyId, UserName))
-    if DISABLE_USERS != "true":
+    if DISABLE_KEYS != "true":
         return
     response = iam_client.update_access_key(
         UserName=UserName,
         AccessKeyId=AccessKeyId,
         Status='Inactive'
     )
-    if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-        handle_error("Adding User to Blackhole Group", UserName, response['ResponseMetadata'])
-    else:
-        return 0
-
-
-def handle_error(action, username, ResponseMetadata):
-    raise Exception("ERROR" + action + " User: " + username + " Details: " + ResponseMetadata)
 
 
 if __name__ == "__main__":
