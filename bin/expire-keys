@@ -22,11 +22,11 @@ EXPLANATION_HEADER = os.environ['EXPLANATION_HEADER']
 
 
 if DISABLE_KEYS == "true":
-    key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. It has been deactivated. Please follow the instructions at https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console ."
+    key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. It has been deactivated. Please follow the instructions at https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console .\nNote that in most cases, your key will only need to be updated in aws-cli."
 else:
-    key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. Please follow the instructions at https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console . "
+    key_expired_message = "\n\tYour AccessKey ID {} is {} days too old. Please follow the instructions at https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console . \nNote that in most cases, your key will only need to be updated in aws-cli."
 
-key_warn_message = "\n\tYour AccessKey ID {} is {} days from expiration. Please follow the instructions at https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console . "
+key_warn_message = "\n\tYour AccessKey ID {} is {} days from expiration. Please follow the instructions at https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#rotating_access_keys_console . \nNote that in most cases, your key will only need to be updated in aws-cli."
 
 email_subject = "Credential Expiration Notice From AWS Account: {}"
 
